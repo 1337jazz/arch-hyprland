@@ -16,13 +16,13 @@ sudo pacman -S --needed --noconfirm \
 	rust \
   go \
 	ripgrep \
-	xclip \
 	chezmoi \
 	zsh \
   base-devel \
   npm \
   unzip \
-  luarocks
+  luarocks \
+  wl-clipboard
 
 # =====================
 # Install yay
