@@ -1,0 +1,177 @@
+#!/bin/bash
+
+# =====================
+# Install pacman packages 
+# =====================
+
+#sudo pacman -Syy
+sudo pacman -S --needed --noconfirm \
+	firefox \
+	wofi \
+	neovim \
+	git \
+	waybar \
+	ttf-font-awesome \
+	brightnessctl \
+	nodejs \
+	rust \
+  go \
+	ripgrep \
+	xclip \
+	chezmoi \
+	zsh \
+  base-devel \
+  npm
+
+
+# =====================
+# Install yay
+# =====================
+if ! command -v yay >/dev/null 2>&1; then
+    echo "Installing yay AUR helper..."
+    
+    # Clone and build yay
+    YAY_TEMP_DIR="$(mktemp -d)"
+    git clone https://aur.archlinux.org/yay.git "$YAY_TEMP_DIR" || {
+        echo "✗ Failed to clone yay repository" >&2
+        rm -rf "$YAY_TEMP_DIR"
+        exit 1
+    }
+    
+    (cd "$YAY_TEMP_DIR" && makepkg -si --noconfirm) || {
+        echo "✗ Failed to build/install yay" >&2
+        rm -rf "$YAY_TEMP_DIR"
+        exit 1
+    }
+    
+    # Cleanup
+    rm -rf "$YAY_TEMP_DIR"
+
+    # First run
+    yay -Syy
+    
+    echo "✓ yay installed successfully"
+else
+    echo "✓ yay already installed"
+fi
+
+# =====================
+# Install yay packages 
+# =====================
+
+yay -S --needed \
+  1password
+
+
+# =====================
+# Install nvm 
+# =====================
+if [ ! -d "$HOME/.nvm" ]; then
+    echo "Installing nvm..."
+    
+    # Download and install nvm
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash || {
+        echo "✗ Failed to install nvm" >&2
+        exit 1
+    }
+    
+    # Load nvm in current shell
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    
+    # Verify installation
+    if command -v nvm >/dev/null 2>&1; then
+        echo "✓ nvm installed successfully"
+        echo "Recommended: Restart your shell and run nvm use <version>"
+        exit 0
+    else
+        echo "✗ nvm installation completed but not detected" >&2
+        echo "Try manually sourcing your shell rc file" >&2
+    fi
+else
+    echo "✓ nvm already installed ($HOME/.nvm exists)"
+fi
+
+# =====================
+# Install LunarVim
+# =====================
+if [ ! -f "$HOME/.local/bin/lvim" ]; then
+  LV_BRANCH='release-1.4/neovim-0.9' bash <(curl -s https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.4/neovim-0.9/utils/installer/install.sh)
+fi
+
+# =====================
+# Set Zsh as Default Shell
+# =====================
+
+# Check if already using Zsh
+if [ "$(basename "$SHELL")" = "zsh" ]; then
+    echo "✓ Zsh is already the current shell."
+else
+    # Check if Zsh is installed
+    if command -v zsh >/dev/null 2>&1; then
+        ZSH_PATH="$(command -v zsh)"
+
+        # Ensure Zsh is in /etc/shells
+        if ! grep -Fxq "$ZSH_PATH" /etc/shells; then
+            echo "Adding Zsh to /etc/shells..."
+            echo "$ZSH_PATH" | sudo tee -a /etc/shells >/dev/null || {
+                echo "✗ Failed to modify /etc/shells (needs sudo?)." >&2
+            }
+        fi
+
+        # Set Zsh as default shell
+        echo "Setting Zsh as default shell..."
+        if chsh -s "$ZSH_PATH" "$(whoami)"; then
+            echo "✓ Success! Restart your session to use Zsh."
+        else
+            echo "✗ Failed to set Zsh as default shell." >&2
+        fi
+    else
+        echo "✗ Zsh is not installed. Skipping shell change." >&2
+    fi
+fi
+
+# =====================
+# Install Oh My Zsh
+# =====================
+
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo "Installing Oh My Zsh..."
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || {
+        echo "Failed to install Oh My Zsh." >&2
+    }
+else
+    echo "✓ Oh My Zsh already installed."
+fi
+
+
+# =====================
+# Init dotfiles with chezmoi
+# =====================
+
+if [ ! -d "$HOME/.local/share/chezmoi" ]; then
+    echo "Initializing dotfiles with Chezmoi..."
+    chezmoi init git@github.com:1337jazz/dotfiles.git || {
+        echo "✗ Failed to initialize dotfiles repo." >&2
+        echo "Set up 1Password with ssh agent and try again!"
+        rm ~/.local/share/chezmoi -rf
+        exit 0
+    }
+    echo "✓ Dotfiles repo initialized. Run 'chezmoi apply' to apply changes."
+else
+    echo "✓ Chezmoi already initialized."
+fi
+
+# =====================
+# Add custom zsh plugins
+# =====================
+ZSH_AUTOSUGGESTIONS_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
+
+if [ ! -d "$ZSH_AUTOSUGGESTIONS_DIR" ]; then
+    echo "Installing zsh-autosuggestions plugin..."
+    git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_AUTOSUGGESTIONS_DIR" || {
+        echo "✗ Failed to install zsh-autosuggestions" >&2
+    }
+else
+    echo "✓ zsh-autosuggestions already installed"
+fi
